@@ -1,0 +1,320 @@
+% -------------------- 导言区 --------------------
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass{article}
+
+% ================== 基本宏包 =====================
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}   % 数学公式
+\usepackage{geometry}           % 页面布局
+\geometry{a4paper,margin=2.5cm}
+\setcounter{secnumdepth}{-\maxdimen} % 去掉自动编号
+
+% ================== 字体设置 =====================
+\usepackage{iftex}
+\ifPDFTeX
+  % PDFTeX 不支持系统中文字体，需要 CJK 宏包
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} 
+\else
+  % XeLaTeX / LuaLaTeX 支持系统字体
+  \usepackage{fontspec}       % 字体控制
+  \defaultfontfeatures{Scale=MatchLowercase,Ligatures=TeX}
+  
+  % ---------- 中文字体 ----------
+  \usepackage{xeCJK}
+
+  % ===== 中文字体强制指定 =====
+  \setCJKmainfont{SimSun}        % 正文宋体
+  \setCJKsansfont{SimHei}       % 黑体
+  % 中文黑体快捷命令
+  \newcommand{\heiti}{\CJKfamily{hei}}
+  \newfontfamily\englishfont{Times New Roman} % 英文
+
+\fi
+
+\usepackage{lmodern} % Latin Modern 字体，兼容 PDFTeX
+\IfFileExists{microtype.sty}{\usepackage[]{microtype}}{}
+
+% ================== 段落设置 =====================
+\makeatletter
+\@ifundefined{KOMAClassName}{
+  \IfFileExists{parskip.sty}{\usepackage{parskip}}{
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}
+  }
+}{\KOMAoptions{parskip=half}}
+\makeatother
+\setlength{\emergencystretch}{3em}
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% ================== 链接设置 =====================
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{}
+\urlstyle{same}
+\usepackage{hyperref}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}
+}
+
+% ================== 图片 =====================
+\usepackage{graphicx}   % 插图
+\usepackage{caption}    % 标题
+\renewcommand{\figurename}{图} % 图片中文批注
+
+% ================== 向量 =====================
+\usepackage{bm}       % 支持加粗向量
+
+\begin{document}
+
+{\heiti\bfseries\fontsize{22pt}{26pt}\selectfont\centering 数学建模方法：支持向量机（SVM）\par}
+
+{\heiti\fontsize{14pt}{18pt}\selectfont\centering 数学建模基本工具\par}
+
+{\fontsize{12pt}{16pt}\selectfont\centering 2025年12月17日\par}
+
+{\fontsize{12pt}{16pt}\selectfont\centering 摘要\par}
+
+\begin{quote}
+  支持向量机在被介绍时通常是不由分说扔公式，给学习的人造成很大烦恼。本文试图清晰地展示该概念的原理，通过大量几何直观解释支持向量机相关概念。
+
+  关键词：支持向量机，几何直观
+  \end{quote}
+
+{\heiti\fontsize{14pt}{18pt}\selectfont 1 从使用目的到定性流程\par}
+
+当我们面对对立选择：是或不是，做或不做，时，需要一个合理准确的判断依据。比如，假设你而立之年在不清楚自己择偶标准的情况下被反复催婚，你该如何构造合理的择偶标准？显然在此情境下你不具备分析能力，所以我们只能通过最直观的方式，即大量与异性接触，提取特征，并且在此过程中你会产生基本的判断：符合择偶想法或不符合择偶想法，从而尝试通过统计方法寻找择偶标准。即，输入：异性1=（身高1，体重1，...），异性2=（身高2，体重2，...），...异性n=（身高n，体重n，...），并做出基本判断：异性1：符合或不符合，异性2：符合或不符合，...异性n：符合或不符合。成功的择偶标准建立，就是能够通过这些数据，划出一条明确的分水岭，使得第一，所有的异性都可以以此标准严格分为符合或不符合，第二，该标准尽量不要太极限，因为假如你就以样本异性中符合标准里面最差的一个作为择偶标准，摸良心说在遇到新人的时候，摆明不符合该标准的人你也非常有可能感觉还不错，俗话说做人留一线，留余地对于标准的设立非常重要。于是标准应尽量处于样本异性中符合标准中最差的和不符合标准中最好的之间，且离二者都尽量远，这样给两边留的余地都说得过去，防止随意变卦。
+
+从上述过程可以看出，寻找最好的择偶标准其实只需要得到足够量的样本，并且通过调整标准的位置让余地最大。样本与你的判定就是这个情境中的\textbf{训练集(Training
+Set)}，最终得到的最好的择偶标准就是一个\textbf{最优超平面(Optimal
+Hyperplane)}，你留下的余地就是\textbf{分类间隔(Margin)}，符合你想法异性中最差的和不符合中最好的，即两类中的上限和下限样本，称为\textbf{支持向量(Support
+Vectors)}，这种基于支持向量通过优化得到最优超平面的二分类模型，称为\textbf{支持向量机(Support
+Vector Machine,
+SVM)}。（当然，本例中找到标准是为了最终找到合适的伴侣，脚踏多船遭雷劈）
+
+{\heiti\fontsize{14pt}{18pt}\selectfont 2 从定性到定量\par}
+
+根据上述原理，我们给出SVM的数学形式：
+
+假设训练集为：
+\begin{equation}
+\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n, \quad x_i \in \mathbb{R}^d, \quad y_i \in \{-1, +1\}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $x_i$ 为第 $i$ 个样本的 $d$ 维特征向量
+    \item $y_i$ 为第 $i$ 个样本的类别标签
+\end{itemize}
+
+SVM 的目标是找到一个线性超平面：
+\begin{equation}
+f(x) = \bm{w}^\top x + b = 0
+\end{equation}
+
+将两类样本，也就是yi = 1与yi = -1，分开（目标1），且离二者都尽量远（目标2）
+为便于理解，可以观察低维数情况。假设：
+
+\begin{equation}
+\bm{w} = (w1, w2)
+\end{equation}
+
+\begin{equation}
+\bm{xi} = (x1, x2)，
+\end{equation}
+
+则(2)式为：
+\begin{equation}
+f(x) = w1x1 + w2x2 + b = 0
+\end{equation}
+
+这就是我们熟悉的直线形式。需要注意的是，f(x)是一个新变量，所以该式表达的应是三维空间中的一个平面，与f(x) = 0平面相交于一条直线。
+如图所示：
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{三维超平面.jpg}
+  \caption{三维超平面分类示意图}
+  \label{fig:svm}
+\end{figure}
+
+从图中我们可以清晰看到，对于f(x) = 0平面来说，两类样本，即yi = 1与yi = -1被超平面分隔于交线两侧；
+对于超平面来说，f(x) > 0与f(x) < 0被f(x) = 0分隔于交线两侧。
+即：交线两侧无论是yi还是f(x)都有唯一的正负性。在(5)式的条件下，这一点显然是目标1的充要条件。
+且yi的取值只不过是对对立问题的翻译，哪一类取1哪一类取-1我们完全可以自己选，所以可以用数学语言做出如下分类：
+
+若规定yi = 1的样本是f(x) > 0一侧的样本，且yi = -1的样本是f(x) < 0一侧的样本
+\begin{equation}
+  yif(x) > 0
+  \end{equation}
+
+若规定yi = 1的样本是f(x) < 0一侧的样本，且yi = -1的样本是f(x) > 0一侧的样本
+\begin{equation}
+  yif(x) < 0
+  \end{equation}
+
+它们的差异只是规定的区别，所以不妨直接规定yi = 1的样本是f(x) > 0一侧的样本，且yi = -1的样本是f(x) < 0一侧的样本，并以此进行后续分析。
+
+现在，我们已经成功通过超平面将两类样本分开（目标1），接下来我们尝试使得超平面离二者都尽量远（目标2）。
+
+要做到这一点，联想最开始的择偶例子，离一类样本的距离实际上就是离这一类样本下限或上限的距离，两类样本的上限和下限即离另外一类最近的样本，同时也将是离超平面最近的样本。且为了使得超平面离两侧都尽量远，给两侧留的余地得相同，即超平面经过两侧极限样本连线的中点。
+
+既然样本是固定的，那这个距离就由平面唯一确定，所以首先平面的参数与这个距离之间必存在函数关系，而我们的目标2是要找到距离最大时的平面，所以这是在处理该函数关系的最值。
+
+现给出数学形式：
+
+设 $\mathbf{x}_1$ 和 $\mathbf{x}_2$ 为超平面上的任意两点，则有
+\begin{equation}
+\mathbf{w}^\top \mathbf{x}_1 + b = 0,\quad
+\mathbf{w}^\top \mathbf{x}_2 + b = 0.
+\end{equation}
+
+两式相减可得
+\begin{equation}
+\mathbf{w}^\top (\mathbf{x}_1 - \mathbf{x}_2) = 0.
+\end{equation}
+
+注意到 $\mathbf{x}_1 - \mathbf{x}_2$ 是超平面内的一条方向向量，上式表明该方向向量与 $\mathbf{w}$ 正交。因此，$\mathbf{w}$ 与超平面内的任意方向向量均垂直，故 $\mathbf{w}$ 是该超平面的法向量。
+
+设任意一点 $\mathbf{x}_0 \in \mathbb{R}^d$，$\mathbf{x}_p$ 为其在超平面上的正交投影点，
+由于 $\mathbf{x}_p$ 位于超平面上，有
+\begin{equation}
+\mathbf{w}^\top \mathbf{x}_p + b = 0.
+\end{equation}
+
+点 $\mathbf{x}_0$ 到超平面的最短距离等于向量
+$\mathbf{x}_0 - \mathbf{x}_p$
+在单位法向量
+$\mathbf{w}/\|\mathbf{w}\|$
+方向上的投影长度。根据向量点积的几何意义，有
+\begin{equation}
+d
+=
+\left|
+(\mathbf{x}_0 - \mathbf{x}_p)^\top
+\frac{\mathbf{w}}{\|\mathbf{w}\|}
+\right|.
+\end{equation}
+
+将点积展开，得到
+\begin{equation}
+d
+=
+\frac{1}{\|\mathbf{w}\|}
+\left|
+\mathbf{w}^\top \mathbf{x}_0
+-
+\mathbf{w}^\top \mathbf{x}_p
+\right|.
+\end{equation}
+
+由
+\begin{equation}
+\mathbf{w}^\top \mathbf{x}_p = -b,
+\end{equation}
+代入可得点 $\mathbf{x}_0$ 到超平面的距离公式：
+\begin{equation}
+d
+=
+\frac{|\mathbf{w}^\top \mathbf{x}_0 + b|}{\|\mathbf{w}\|}.
+\end{equation}
+
+我们也就是要通过这个函数算出最值。有人也许会想，我们之前既然说过，超平面一定过支持向量点连线段的中点，那难道不是直接代入定点消掉b就可以了吗，或者再直观一点，要两侧距离最大不是直接垂直连线就可以了吗。比如在我们最开始的择偶例子中，这样确实没有问题，因为好和坏是一条直线贯通的，所以我们可以得到严格意义上的最差和最好，但对于散点来说，两类也只有一个大致的方向，也就是比如你旋转坐标轴之后，还是可以分成两类，但是上限下限点就已经变了，所以虽然对于每一个静态情况来说都可以以一种简单方式处理，但你还得考虑不同情况下最值的比较，且因为情况的变化是基于坐标轴旋转的直观，难以用函数表达，所以我们很难像求偏导似的简单算出来。
+
+在这种情况下，我们把注意力放回这个式子本身，尝试从代数上处理。从代数直观上来看，分母是变量w相关，但是一个标量，且标量的形式较复杂（平方和开根），分子同样包含变量w，且是点积形式，还包含变量b，是纯粹的标量。所以我们可以看出，代数形式上，变量位置非常分散，且形式非常多样，造成了问题处理的困难。
+
+所以我们想，有没有办法把其中一些部分简化呢？观察分子，分子的形式其实和f(x)本身非常相似，但因为分子中的x是样本中的x,样本点在交线外，所以分子部分肯定是某个不为0的数，这时候你可能会想到换元，比如直接令分子部分为k，但这里会面临一个问题，就是分子和分母含有同一个变量，正常逻辑说不同变量用起来舒服就是因为这些变量具有它自己的独立性，而且说白了w也是你必须要研究的部分。但由于f(x)的形式确实和分子比较像，这已经是为数不多的线索了，所以我们想继续尝试换元。
+
+我们已经说过，换元需要某种独立性，所以我们看能不能找到类似的独立性呢。比如我们现在强行令分子=k，并且把目光切换到三维空间（为例）。f(x)有没有可能等于k呢？其实有可能，因为f(x) = k平面可以在空间中移动，想象一下这个平面的移动，你会发现f(x) = k的解就是f(x) = k平面与超平面交线在f(x) = 0平面上投影的直线，而随着f(x) = k平面的移动，该投影直线也会移动，那你说有没有可能什么时候就移动到样本点上去了呢，当然有可能。
+
+现在考虑超平面的变化。超平面 $f(x) = \bm{w}^\top x + b = 0$ 的变化来源是w和b，所以我们通过控制w和b控制平面：
+
+\begin{equation}
+  \quad w \to \lambda_1 w, \quad b \to \lambda_2 b, 
+  \quad \lambda_1, \lambda_2 \in \mathbb{R} \ \lambda_1 \neq 0
+  \end{equation}
+
+由此进行简单分类讨论：
+
+若 $\lambda_1 = \lambda_2$， 
+
+我们能发现，因为超平面是 $f(x) = \bm{w}^\top x + b = 0$， 所以显然平面位置不会发生移动。
+
+结合f(x) = k (k ≠ 0)，现在如果施加变化于w、b，假设k不变，则x必伸缩为原来的1/lambda，反之如果x不变则k伸缩。
+
+可以说，$\lambda_1 = \lambda_2$ 即是对超平面进行伸缩变换，且只在内部变化，不对外部造成影响。可以用于对交线在f(x) = 0平面的投影进行平移。
+
+若 $\lambda_1 \neq \lambda_2$， 
+
+则法向量系数发生改变，超平面发生旋转。
+
+有一点事实是显然的，即不管是伸缩还是旋转，直线都是无限长，所以不管交线在f(x) = 0平面的投影如何被旋转，只因为样本点和它处于一个平面中，它就一定可以通过平移与该点相交，反之同理。
+
+基于上述所有信息我们可以最终发现，因为我们最终关心的仅仅只不过f(x) = 0平面，所以不论k取何值，无论超平面如何旋转，我们都完全可以通过对超平面的伸缩，使交线在f(x) = 0平面的投影平移，从而始终通过同一个样本点，即：
+
+对于任意样本点，任取实数k，使得
+
+\begin{equation}
+  \mathbf{w}^\top \mathbf{x}_0 + b = k
+  \end{equation}
+
+都不会对选取超平面的池子造成影响。所以为了简单，不妨样本点选取本情境下支持向量点，则因为非支持向量点一定比支持向量点离交线在f(x) = 0平面的投影更远，所以需要的k必然更大。为了简单，不妨直接取k = 1，
+
+所以我们最终最终得到了约束条件：
+
+\begin{equation}
+  y_i (\mathbf{w}^\top \mathbf{x}_i + b) \ge 1, \quad \forall i
+  \end{equation}
+
+代入距离式，且为了形式简单且求导方便，最大化间隔 $\frac{2}{\|\bm{w}\|}$，等价于最小化：
+\begin{equation}
+\min_{\bm{w}, b} \frac{1}{2} \|\bm{w}\|^2
+\end{equation}
+
+这也就是支持向量机基本模型的结论。后续只需要使用梯度下降方法写代码计算即可。
+
+{\heiti\fontsize{14pt}{18pt}\selectfont 3 完善结构\par}
+
+接下来我将对上述问题一些推广情况进行说明，使逻辑更加完善。
+
+显然，我们选取本情境下支持向量点就是为了选取本情景下离交线在f(x) = 0平面的投影最近的点，从而实现单纯的≥形式，从而大幅简化d的最值计算。然而这个点仅仅只是我们现有样本中的点而已，可以想象当我们遇到新的样本，不可否认新样本可能比现有下限更往下，即离投影直线更近，我们自然认为，新点中在我们样本下限之上的是好，反之是坏。
+
+但我们不得不考虑这个因素，于是我们引入\textbf{松弛变量（Slack Variable）} $\xi_i \ge 0$，代表单个坏样本点离投影直线的距离（注意，它并不等于这个距离，只不过从k值里减也可以投影下来而已）。
+
+我们当然不喜欢坏样本点，所以使用新样本点重新进行d最值计算（学习过程）时，显然应该把松弛变量纳入算法，其效果应该与我们的目标相反，所以既然我们要求最小值，松弛变量项就应该是单调递增函数，我们称这个过程叫\textbf{惩罚（Penalty）}。按照道理说，我们可以选择所有具有惩罚效果的函数，所以为了形式简单，我们选择最简单的函数，即多项式。引入\textbf{惩罚系数（Penalty Parameter）} $C$，调整最优距离算法如下：
+
+\begin{equation}
+\min_{\bm{w}, b, \bm{\xi}} \frac{1}{2} \|\bm{w}\|^2 + C \sum_{i=1}^{n} \xi_i
+\end{equation}
+\begin{equation}
+\text{s.t. } y_i (\bm{w}^\top x_i + b) \ge 1 - \xi_i, \quad \xi_i \ge 0, \quad i = 1, 2, \dots, n
+\end{equation}
+
+另一方面，也许有人从一开始就有疑问，即实际上在我们想象中数据未必能被超平面分开。稍加分析，从理论上说两个完全对立的选择肯定是在很多方面有相反的特征，所以确实从大趋势来说它们确实容易呈现可以被超平面分开的状态，但现实世界中难免出现特殊情况，我们得想办法解决这个问题。
+
+众所周知，向量与矩阵一个重要的应用就是线性变换，这启发我们，如果数据本身不契合，我们其实完全可以对数据线性变换成契合的形式。
+
+即：
+
+当样本在原空间中线性不可分时，引入特征映射 $\phi: \mathbb{R}^d \to \mathcal{H}$，将数据映射到高维（甚至无限维）特征空间，在该空间中构造线性分类器： \begin{equation} f(\mathbf{x}) = \mathbf{w}^\top \phi(\mathbf{x}) + b. \end{equation}
+
+但线性变换过程计算复杂，加上如果本身样本维数就很大，甚至趋于无穷大，受限于硬件，我们根本无法完成这样的计算。所以我们需要想一个办法，即在保留所有信息的同时减少储存的信息，这个办法就是内积。
+
+通过对所有样本进行内积计算，我们可以保留它们所有的信息，但最终却只需要使用内积的结果，也就是实数来储存，这极大地减少了信息储存量。
+
+在实际操作中，我们通过拉格朗日对偶变换，SVM 的优化问题可转化为对偶形式： \begin{equation} \max_{\boldsymbol{\alpha}} \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j , \langle \phi(\mathbf{x}_i), \phi(\mathbf{x}j) \rangle, \end{equation} \begin{equation} \text{s.t. } \sum{i=1}^n \alpha_i y_i = 0, \quad \alpha_i \ge 0. \end{equation}
+
+可以看到，在对偶问题及最终决策函数中，模型完全不依赖于特征向量的具体坐标表示，而仅依赖于特征空间中的\emph{内积}： \begin{equation} f(\mathbf{x}) = \sum_{i=1}^n \alpha_i y_i \langle \phi(\mathbf{x}_i), \phi(\mathbf{x}) \rangle + b. \end{equation}
+
+因此，我们甚至会发现，SVM 的计算结构天然只需要内积运算，而不需要显式构造高维向量 $\phi(\mathbf{x})$。
+
+核函数 $k(\mathbf{x},\mathbf{z})$ 被定义为： \begin{equation} k(\mathbf{x},\mathbf{z}) = \langle \phi(\mathbf{x}), \phi(\mathbf{z}) \rangle. \end{equation}
+
+通过选取满足 Mercer 条件的核函数，可以在不显式计算 $\phi(\mathbf{x})$ 的情况下，直接获得高维特征空间中的内积值。这一过程被称为\textbf{核技巧（Kernel Trick）}。
+
+需要强调的是，核函数在数学上确实等价于高维（甚至无限维）特征空间中的内积，但这种等价是\emph{函数式的、隐式的}，而非显式坐标展开的结果。
+
+\end{document}
