@@ -311,10 +311,49 @@ d
 
 因此，我们甚至会发现，SVM 的计算结构天然只需要内积运算，而不需要显式构造高维向量 $\phi(\mathbf{x})$。
 
-核函数 $k(\mathbf{x},\mathbf{z})$ 被定义为： \begin{equation} k(\mathbf{x},\mathbf{z}) = \langle \phi(\mathbf{x}), \phi(\mathbf{z}) \rangle. \end{equation}
+在线性可分 SVM 中，我们希望求解最优超平面 $w^\top x + b = 0$，使间隔最大：
 
-通过选取满足 Mercer 条件的核函数，可以在不显式计算 $\phi(\mathbf{x})$ 的情况下，直接获得高维特征空间中的内积值。这一过程被称为\textbf{核技巧（Kernel Trick）}。
+\begin{equation}
+\min_{w,b} \frac{1}{2} \|w\|^2
+\end{equation}
 
-需要强调的是，核函数在数学上确实等价于高维（甚至无限维）特征空间中的内积，但这种等价是\emph{函数式的、隐式的}，而非显式坐标展开的结果。
+并满足约束条件：
+\begin{equation}
+y_i (w^\top x_i + b) \ge 1, \quad i = 1, 2, \dots, n
+\end{equation}
+
+为了将约束条件纳入优化，可以引入拉格朗日乘子 $\alpha_i \ge 0$：
+
+\begin{equation}
+L(w, b, \alpha) = \frac{1}{2} \|w\|^2 - \sum_{i=1}^n \alpha_i \left[ y_i (w^\top x_i + b) - 1 \right]
+\end{equation}
+
+通过对 $w$ 和 $b$ 求偏导并消去，可以得到对偶问题：
+
+\begin{equation}
+\max_{\alpha} \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i,j=1}^n \alpha_i \alpha_j y_i y_j x_i^\top x_j
+\end{equation}
+
+约束条件为：
+
+\begin{equation}
+0 \le \alpha_i \le C, \quad \sum_{i=1}^n \alpha_i y_i = 0
+\end{equation}
+
+对偶问题求得最优 $\alpha_i^\ast$ 后，原问题的超平面可以通过：
+
+\begin{equation}
+w = \sum_{i=1}^n \alpha_i^\ast y_i x_i
+\end{equation}
+
+求得，偏置 $b$ 可以根据支持向量计算。  
+
+在核 SVM 的情况下，使用核函数 $K(x_i, x_j)$，预测函数可以写为：
+
+\begin{equation}
+f(x) = \sum_{i=1}^n \alpha_i^\ast y_i K(x_i, x) + b
+\end{equation}
+
+因此，优化 $\alpha$ 就等价于优化原问题的超平面参数 $w$ 和 $b$，同时通过核函数实现高维映射而无需显式计算。
 
 \end{document}
