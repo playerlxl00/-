@@ -328,6 +328,10 @@ y_i (w^\top x_i + b) \ge 1, \quad i = 1, 2, \dots, n
 L(w, b, \alpha) = \frac{1}{2} \|w\|^2 - \sum_{i=1}^n \alpha_i \left[ y_i (w^\top x_i + b) - 1 \right]
 \end{equation}
 
+如果 $\alpha_i > 0$ → 对应样本是支持向量。
+
+如果 $\alpha_i = 0$ → 对应样本在间隔外，不影响超平面。
+
 通过对 $w$ 和 $b$ 求偏导并消去，可以得到对偶问题：
 
 \begin{equation}
