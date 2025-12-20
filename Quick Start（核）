@@ -89,7 +89,7 @@ class KernelSVM:
                     self.alpha[i] += y[i] * y[j] * (alpha_j_old - self.alpha[j])
 
                     # 更新偏置 b
-                    b1 = self.b - error_i \
+                    b1 = self.b - error \
                          - y[i] * (self.alpha[i] - alpha_i_old) * K[i, i] \
                          - y[j] * (self.alpha[j] - alpha_j_old) * K[i, j]
 
