@@ -8,7 +8,7 @@ class LinearSVM:
     """
     普通线性 SVM（无核），使用次梯度下降优化 hinge loss
     """
-    def __init__(self, lr=1e-3, C=1.0, epochs=1000):
+    def __init__(self, lr=1e-3, C=1.0, epochs=1000): # 我这里采用固定迭代次数的方法，当然也可以通过设置阈值比如∇f(w,b)<ϵ或者∣fnew​−fold​∣<ϵ
         self.lr = lr
         self.C = C
         self.epochs = epochs
